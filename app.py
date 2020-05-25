@@ -2,7 +2,7 @@ from pprint import pprint
 import requests
 import time
 import json
-from data import app_id
+from data import app_id, vk_api
 from datetime import datetime
 import re
 from pandas import json_normalize
@@ -11,7 +11,10 @@ from pymongo import MongoClient
 class User:
     def __init__(self, id):
         self.id = id
-
+        self.access_token = self.authorization()
+        self.delta = 4
+        self.V = '5.103'
+        self.API = "https://api.vk.com/method"
     def authorization(self):
         url = f'https://oauth.vk.com/authorize?client_id={app_id}&display=popup&redirect_uri=https://oauth.vk.com' \
               f'/blank.html&scope=friends&response_type=token&v=5.103 '
@@ -23,9 +26,9 @@ class User:
     def get_groups(self):
         group_list = list()
         group_set = set()
-        params = {'access_token': access_token, 'user_id': self.resolveScreenName(self.id), 'v': V,
+        params = {'access_token': self.access_token, 'user_id': self.resolveScreenName(self.id), 'v': self.V,
                   'extended': 1, 'fields': ['members_count']}
-        response = requests.get(f'{API}/groups.get', params=params).json()['response']
+        response = requests.get(f'{self.API}/groups.get', params=params).json()['response']
         if response is not None:
             items = response.get('items')
             for item in items:
@@ -38,23 +41,23 @@ class User:
         return group_set
 
     def resolveScreenName(self, screen_name):
-        params = {'access_token': access_token, 'screen_name': screen_name, 'v': V}
-        response = requests.get(f"{API}/utils.resolveScreenName", params=params).json()['response']
+        params = {'access_token': self.access_token, 'screen_name': screen_name, 'v': self.V}
+        response = requests.get(f"{self.API}/utils.resolveScreenName", params=params).json()['response']
         ID = response['object_id']
         return ID
 
     def getUserInfo(self):
-        params = {'access_token': access_token, 'user_ids': self.resolveScreenName(self.id), 'fields':
-            'city ,sex, bdate, music', 'v': '5.103'}
-        response = requests.get(f"{API}/users.get", params=params).json()['response'][0]
+        params = {'access_token': self.access_token, 'user_ids': self.resolveScreenName(self.id), 'fields':
+            'city ,sex, bdate, music', 'v': self.V}
+        response = requests.get(f"{self.API}/users.get", params=params).json()['response'][0]
         for data in response:
             if response[data] == '':
                 new_data = input(f"Заполните поле {data}: ")
                 response[data] = new_data
         if 'city' not in response:
             city = input("Введите город: ")
-            params = {'access_token': access_token, 'country_id': 1, 'q': city, 'v': V}
-            city_request = requests.get(f"{API}/database.getCities", params=params).json()['response']
+            params = {'access_token': self.access_token, 'country_id': 1, 'q': city, 'v': self.V}
+            city_request = requests.get(f"{self.API}/database.getCities", params=params).json()['response']
             city_request = city_request['items'][0]
             response['city'] = city_request
         if 'bdate' not in response:
@@ -80,12 +83,12 @@ class User:
         db_users = list(db_collection.find({}, {'id': 1}))
         for index in db_users:
             db_list.append(index['id'])
-        filter_age_min = int((today - bdate).days / 365) - 2
-        filter_age_max = int((today - bdate).days / 365) + 2
-        params = {'access_token': access_token, 'count': 1000, 'offset': len(db_users), 'city': filter_city,
+        filter_age_min = int((today - bdate).days / 365) - self.delta
+        filter_age_max = int((today - bdate).days / 365) + self.delta
+        params = {'access_token': self.access_token, 'count': 1000, 'offset': len(db_users), 'city': filter_city,
                   'sex': filter_sex, 'status': 6, 'age_from': filter_age_min,
-                  'age_to': filter_age_max, 'has_photo': 1, 'fields': 'music', 'v': V}
-        searched_users = requests.get(f"{API}/users.search", params=params).json()['response']['items']
+                  'age_to': filter_age_max, 'has_photo': 1, 'fields': 'music', 'v': self.V}
+        searched_users = requests.get(f"{self.API}/users.search", params=params).json()['response']['items']
         for index in range(len(searched_users)-1, -1, -1):
             searched_users[index]['weight'] = 0
             if searched_users[index]['id'] in db_list:
@@ -129,7 +132,7 @@ class User:
             response = requests.get(
                 "https://api.vk.com/method/friends.getMutual",
                 params={
-                    "access_token": access_token,
+                    "access_token": self.access_token,
                     "v": "5.103",
                     "source_uid": self.resolveScreenName(self.id),
                     "target_uids": user_ids,
@@ -171,8 +174,8 @@ class User:
                           i= i+ 1;
                       }
                       return c;'''
-            params = {'access_token': access_token, 'code': code, 'a': a, 'v': V}
-            response = requests.get(url=f'{API}/execute', params=params)
+            params = {'access_token': self.access_token, 'code': code, 'a': a, 'v': self.V}
+            response = requests.get(url=f'{self.API}/execute', params=params)
             counter += 1
             print(f'Осталось обработать {len(search_list) - in_progress} человек')
             in_progress += offset
@@ -212,11 +215,11 @@ class User:
         user_photos = dict()
         a = list()
         for user in users:
-            params = {'owner_id': user['id'], 'access_token': access_token,
-                      'album_id': 'profile', 'extended': 1, 'photo_sizes': 1, 'v': V}
+            params = {'owner_id': user['id'], 'access_token': self.access_token,
+                      'album_id': 'profile', 'extended': 1, 'photo_sizes': 1, 'v': self.V}
             user_id = user['id']
             try:
-                response = requests.get(f'{API}/photos.get', params=params).json()['response']
+                response = requests.get(f'{self.API}/photos.get', params=params).json()['response']
                 photos.append(response)
                 for photo in response['items']:
                     likes = photo['likes']['count']
@@ -249,7 +252,6 @@ class User:
         return users
     def write_json(self):
         json_dict = self.get_top3_photos()
-
         with open('most_common_people.json', 'w', encoding='utf-8') as f:
             f.write(json.dumps(json_dict, indent=4, ensure_ascii=False))
         return json_dict
@@ -269,10 +271,8 @@ class User:
         return list_for_database
 
 if __name__ == "__main__":
-    API = "https://api.vk.com/method"
-    V = "5.103"
+
     user_id = input("Введите id в формате idXXXXX, или screen name пользователя: ")
     user = User(user_id)
-    access_token = user.authorization()
     pprint(user.write_to_db('most_common_people.json'))
-    delta = 4
+
