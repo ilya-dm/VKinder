@@ -18,8 +18,8 @@ class User:
     def authorization(self):
         url = f'https://oauth.vk.com/authorize?client_id={app_id}&display=popup&redirect_uri=https://oauth.vk.com' \
               f'/blank.html&scope=friends&response_type=token&v=5.103 '
-        print('Чтобы получить токен для авторизации, перейдите по ссылке: ')
-        print(url)
+        print(f'Чтобы получить токен для авторизации, перейдите по ссылке: {url}')
+
         access_token = input("Введите токен: ")
         return access_token
 
@@ -93,29 +93,33 @@ class User:
             searched_users[index]['weight'] = 0
             if searched_users[index]['id'] in db_list:
                 searched_users.remove(searched_users[index])
-        music_filter = target['music']
-        if ',' in music_filter:
-            music_filter = music_filter.split(',')
-        for user in searched_users:
-            if type(music_filter) == list:
-                try:
-                    for element in music_filter:
-                        a = re.search(re.compile(element, re.IGNORECASE), user['music'])
+        try:
+            music_filter = target['music']
+            if ',' in music_filter:
+                music_filter = music_filter.split(',')
+            for user in searched_users:
+                if type(music_filter) == list:
+                    try:
+                        for element in music_filter:
+                            a = re.search(re.compile(element, re.IGNORECASE), user['music'])
+                            common_music.append(a)
+                        if len(common_music) > 0:
+                            user['weight'] += 3
+                            common_music = []
+                    except KeyError:
+                        continue
+                else:
+                    try:
+                        a = re.search(re.compile(music_filter, re.IGNORECASE), user['music'])
                         common_music.append(a)
-                    if len(common_music) > 0:
-                        user['weight'] += 3
-                        common_music = []
-                except KeyError:
-                    continue
-            else:
-                try:
-                    a = re.search(re.compile(music_filter, re.IGNORECASE), user['music'])
-                    common_music.append(a)
-                    if len(common_music) > 0:
-                        user['weight'] += 3
-                        common_music = []
-                except KeyError:
-                    continue
+                        if len(common_music) > 0:
+                            user['weight'] += 3
+                            common_music = []
+                    except KeyError:
+                        continue
+        except KeyError:
+            pass
+
         return searched_users
 
     def mutual_friends_filter(self):
