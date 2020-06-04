@@ -269,20 +269,6 @@ class User:
         with open('most_common_people.json', 'w', encoding='utf-8') as f:
             f.write(json.dumps(json_dict, indent=4, ensure_ascii=False))
         return json_dict
-    #
-    # def connect_to_db(self):
-    #     client = MongoClient("localhost", 27017)
-    #     vkinder_db = client['admin']
-    #     most_common_people_collection = vkinder_db['most_common_people_collection']
-    #     return most_common_people_collection
-    #
-    # def write_to_db(self, filename):
-    #     self.write_json()
-    #     with open(filename, 'r', encoding='utf-8') as f:
-    #         list_for_database = json.load(f)
-    #     most_common_people_collection = self.connect_to_db()
-    #     most_common_people_collection.insert_many(list_for_database)
-    #     return list_for_database
 
 
 class Database():
