@@ -1,3 +1,4 @@
+import os
 from pprint import pprint
 import requests
 import time
@@ -15,7 +16,7 @@ class User:
         self.API = "https://api.vk.com/method"
         self.app_id = 7451978
         self.access_token = access_token
-
+        self.connect_to_db = Database.connect_to_db(self)
     def authorization(self):
         url = f'https://oauth.vk.com/authorize?client_id={self.app_id}&display=popup&redirect_uri=https://oauth.vk.com' \
               f'/blank.html&scope=friends&response_type=token&v=5.103 '
@@ -73,13 +74,13 @@ class User:
         today = datetime.strptime(datetime.today().strftime("%d.%m.%Y"), "%d.%m.%Y")
         bday = datetime.strptime(target['bdate'], "%d.%m.%Y")
         age = today.year - bday.year
-        db_collection = self.connect_to_db()
+        db_collection = self.connect_to_db
         db_users = list(db_collection.find({}, {'id': 1}))
         for index in db_users:
             db_list.append(index['id'])
         params = {'access_token': self.access_token, 'count': 1000, 'offset': len(db_users), 'city': filter_city,
-                  'sex': filter_sex, 'status': 6, 'age_from': age-self.delta,
-                  'age_to': age+self.delta, 'has_photo': 1, 'fields': 'music', 'v': self.V}
+                  'sex': filter_sex, 'status': 6, 'age_from': age - self.delta,
+                  'age_to': age + self.delta, 'has_photo': 1, 'fields': 'music', 'v': self.V}
         searched_users = requests.get(f"{self.API}/users.search", params=params).json()['response']['items']
         for index in range(len(searched_users) - 1, -1, -1):
             searched_users[index]['weight'] = 0
@@ -145,7 +146,6 @@ class User:
                     continue
         return searched_users
 
-
     def mutual_friends_filter(self):
         target_uids_lst = []
         searched_users = self.movies_filter()
@@ -161,7 +161,7 @@ class User:
             response = requests.get(
                 f"{self.API}/friends.getMutual",
                 params={"access_token": self.access_token, "v": self.V, "source_uid": self.resolveScreenName(self.id),
-                    "target_uids": user_ids})
+                        "target_uids": user_ids})
             time.sleep(0.3)
             print('***************')
             mutual_friends_info = response.json()["response"]
@@ -269,6 +269,25 @@ class User:
         with open('most_common_people.json', 'w', encoding='utf-8') as f:
             f.write(json.dumps(json_dict, indent=4, ensure_ascii=False))
         return json_dict
+    #
+    # def connect_to_db(self):
+    #     client = MongoClient("localhost", 27017)
+    #     vkinder_db = client['admin']
+    #     most_common_people_collection = vkinder_db['most_common_people_collection']
+    #     return most_common_people_collection
+    #
+    # def write_to_db(self, filename):
+    #     self.write_json()
+    #     with open(filename, 'r', encoding='utf-8') as f:
+    #         list_for_database = json.load(f)
+    #     most_common_people_collection = self.connect_to_db()
+    #     most_common_people_collection.insert_many(list_for_database)
+    #     return list_for_database
+
+
+class Database():
+    def __init__(self):
+        self.user = User(id)
 
     def connect_to_db(self):
         client = MongoClient("localhost", 27017)
@@ -277,16 +296,22 @@ class User:
         return most_common_people_collection
 
     def write_to_db(self, filename):
-        self.write_json()
         with open(filename, 'r', encoding='utf-8') as f:
             list_for_database = json.load(f)
         most_common_people_collection = self.connect_to_db()
         most_common_people_collection.insert_many(list_for_database)
         return list_for_database
 
+    def get_items_from_db(self):
+        db_collection = self.connect_to_db()
+        db_users = list(db_collection.find())
+        return db_users
+
 
 if __name__ == "__main__":
     user_id = input("Введите id в формате idXXXXX, или screen name пользователя: ")
     user = User(user_id)
+    db = Database()
     access_token = user.authorization()
-    pprint(user.write_to_db('most_common_people.json'))
+    user.write_json()
+    pprint(db.write_to_db('most_common_people.json'))
